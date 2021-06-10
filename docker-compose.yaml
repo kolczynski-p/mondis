@@ -1,0 +1,21 @@
+version: '3'
+services:
+  db:
+    image: mongo
+    ports: 
+      - "27017:27017"
+    restart: on-failure
+  redis:
+    image: rejson
+    ports:
+      - "6379:6379"
+  app:
+    build: ./backend
+    ports:
+      - "3001:3001"
+    depends_on: 
+      - "db"
+      - "rejson"
+    restart: on-failure
+  
+  
