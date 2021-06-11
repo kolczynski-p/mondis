@@ -22,10 +22,4 @@ function connectToServer( callback ) {
     })
 }
 
-function getDb() {
-    return db;
-}
-
-
-
-module.exports = {connectToServer, getDb}
+module.exports = {connectToServer}

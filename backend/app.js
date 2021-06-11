@@ -4,7 +4,9 @@ const path = require('path');
 const bodyParser = require('body-parser');
 const morgan = require('morgan');
 const mongo = require('./db/mongo');
-let dbo;
+const redis = require('./db/redis');
+let dbHandle;
+let redisHandle;
 
 
 const app = express();
@@ -22,7 +24,6 @@ app.use(cors({
 	exposedHeaders: ['set-cookie']
 }));
 
-app.use(morgan('combined', { stream: accessLogStream }));
 
 app.use(bodyParser.json());
 
@@ -44,10 +45,12 @@ mongo.connectToServer((err, db) => {
 		console.log('CONNECTED TO MONGODB');
 		console.log('Server is working on port ' + port);
 		server.listen(port);
-		dbo = db;
-		module.exports.db = dbo;
-		console.log('test');
-		console.log(dbo);
+
+		dbHandle = db;
+		redisHandle=redis.connectToRedis();
+		module.exports.mongo = dbHandle;
+		module.exports.redis = redisHandle;
+
 		const products = require('./routes');
 		app.use('/api/products', products);
 		
@@ -55,32 +58,3 @@ mongo.connectToServer((err, db) => {
 	}
 });
 
-
-
-
-
-
-
-
-
-
-
-
-//mongoose.connect(
-//	process.env.MONGO_URL,
-//	{
-//		useNewUrlParser: true,
-//		useUnifiedTopology: true,
-//	},
-//	(err) => {
-//		if (err) {
-//			console.error('FAILED TO CONNECT TO MONGODB');
-//			console.error(err);
-//		} else {
-//			console.log('CONNECTED TO MONGODB');
-//			console.log('Server is working on port ' + port);
-//			server.listen(port)
-//		}
-//	}
-//);
-//

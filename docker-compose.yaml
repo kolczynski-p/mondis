@@ -6,7 +6,7 @@ services:
       - "27017:27017"
     restart: on-failure
   redis:
-    image: rejson
+    image: redis
     ports:
       - "6379:6379"
   app:
@@ -15,7 +15,7 @@ services:
       - "3001:3001"
     depends_on: 
       - "db"
-      - "rejson"
+      - "redis"
     restart: on-failure
   
   
