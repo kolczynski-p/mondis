@@ -33,9 +33,10 @@ function placeOrder(requestDetails) {
     let totalAmount = 0;
     let itemsUpdated = [];
 
-    items.forEach((item, index) => {
-        const query = { _id: ObjectId(item._id) };
-        db.collection('products').find(query).toArray()
+    Promise.all(items.map((item) => {
+        return new Promise((resolve) => {
+            const query = { _id: ObjectId(item._id) };
+            db.collection('products').find(query).toArray()
             .then(result => {
                 result=result[0];
                 if (result.stock < item.quantity) {
@@ -54,18 +55,23 @@ function placeOrder(requestDetails) {
                     console.log(totalAmount)
                     itemsUpdated.push(item);
                     console.log(itemsUpdated);
-
+    
                     const updatedQuantity = result.stock - item.quantity;
                     const updateQuery = {$set: {"stock": updatedQuantity}};
                     
-                    db.collection('products').updateOne({_id: ObjectId(item._id)},updateQuery);
+                    db.collection('products').updateOne({_id: ObjectId(item._id)},updateQuery)
+                    .then(() => {
+                        resolve();
+                    });
                 }
-
             });
+        })
+    })).then(() => {
+        requestDetails.items=itemsUpdated;
+        requestDetails.totalAmount=totalAmount;
+        console.log(requestDetails);
     })
-    requestDetails.items=itemsUpdated;
-    requestDetails.totalAmount=totalAmount;
-    console.log(requestDetails);
+    
 
     return requestDetails;
 }
