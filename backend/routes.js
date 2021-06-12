@@ -173,7 +173,7 @@ router.get('/orders', async (req, res) => {
 router.get('/orders/:email', async (req, res) => {
 
     try {
-        const query = { email: req.params.id };
+        const query = { email: req.params.email };
         await db.mongo.collection('orders').find(query).toArray()
             .then(docs => {
                 res.status(200);

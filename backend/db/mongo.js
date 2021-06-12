@@ -63,10 +63,18 @@ async function placeOrder(requestDetails) {
             });
         })
     }))
-
+    const timestamp = new Date().toISOString().slice(0,-5);
     requestDetails.items=itemsUpdated;
     requestDetails.totalAmount=totalAmount;
+    requestDetails.orderDate=timestamp;
     console.log(requestDetails);
+    
+    try {
+        db.collection('orders').insertOne(requestDetails);
+        console.log("Order inserted in db ");
+    }
+    catch (err) { console.log("Order not inserted in db:  " + err); }
+
 
     return requestDetails;
 }
