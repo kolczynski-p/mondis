@@ -2,6 +2,7 @@ const MongoClient = require("mongodb").MongoClient;
 const urlMongo = process.env.MONGO_URL || "mongodb://localhost:27017";
 const productsData = require('./data/products');
 const categoriesData = require('./data/categories');
+const { ObjectId } = require('mongodb')
 
 
 let db;
@@ -24,10 +25,55 @@ async function connectToServer(callback) {
     })
 }
 
+//Place order
+
+function placeOrder(requestDetails) {
+    console.log("ORDER DEBUGG");
+    let items = requestDetails.items;
+    let totalAmount = 0;
+    let itemsUpdated = [];
+
+    items.forEach((item, index) => {
+        const query = { _id: ObjectId(item._id) };
+        db.collection('products').find(query).toArray()
+            .then(result => {
+                result=result[0];
+                if (result.stock < item.quantity) {
+                    throw "ordered item is not in stock"
+                }
+                else {
+                    let price = result.price * item.quantity;
+                    if (result.stock < 3) {
+                        price = price * 0.9;
+                    }
+                    
+                    item.price = price;
+                    item.brand = result.brand;
+                    item.name = result.name;
+                    totalAmount += price;
+                    console.log(totalAmount)
+                    itemsUpdated.push(item);
+                    console.log(itemsUpdated);
+
+                    const updatedQuantity = result.stock - item.quantity;
+                    const updateQuery = {$set: {"stock": updatedQuantity}};
+                    
+                    db.collection('products').updateOne({_id: ObjectId(item._id)},updateQuery);
+                }
+
+            });
+    })
+    requestDetails.items=itemsUpdated;
+    requestDetails.totalAmount=totalAmount;
+    console.log(requestDetails);
+
+    return requestDetails;
+}
+
 //Initial MongoDB data seeding
 
 async function initialPopulateDb(dbo) {
-    
+
     await dbo.listCollections().toArray(async function (err, collections) {
         //Create and populate shop.products
         console.log(collections);
@@ -86,4 +132,4 @@ async function initialPopulateDb(dbo) {
 
 }
 
-module.exports = { connectToServer, initialPopulateDb }
+module.exports = { connectToServer, initialPopulateDb, placeOrder }
