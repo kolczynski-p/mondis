@@ -141,7 +141,7 @@ router.post('/orders/order', async (req, res) => {
     
 
     try {
-        const orderResult = placeOrder(requestDetails);
+        const orderResult = await placeOrder(requestDetails);
         res.status(200);
         return res.json(orderResult);
     }

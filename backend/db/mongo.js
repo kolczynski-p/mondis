@@ -27,13 +27,11 @@ async function connectToServer(callback) {
 
 //Place order
 
-function placeOrder(requestDetails) {
+async function placeOrder(requestDetails) {
     console.log("ORDER DEBUGG");
     let items = requestDetails.items;
     let totalAmount = 0;
-    let itemsUpdated = [];
-
-    Promise.all(items.map((item) => {
+    let itemsUpdated = await Promise.all(items.map((item) => {
         return new Promise((resolve) => {
             const query = { _id: ObjectId(item._id) };
             db.collection('products').find(query).toArray()
@@ -53,25 +51,22 @@ function placeOrder(requestDetails) {
                     item.name = result.name;
                     totalAmount += price;
                     console.log(totalAmount)
-                    itemsUpdated.push(item);
-                    console.log(itemsUpdated);
     
                     const updatedQuantity = result.stock - item.quantity;
                     const updateQuery = {$set: {"stock": updatedQuantity}};
                     
                     db.collection('products').updateOne({_id: ObjectId(item._id)},updateQuery)
                     .then(() => {
-                        resolve();
+                        resolve(item);
                     });
                 }
             });
         })
-    })).then(() => {
-        requestDetails.items=itemsUpdated;
-        requestDetails.totalAmount=totalAmount;
-        console.log(requestDetails);
-    })
-    
+    }))
+
+    requestDetails.items=itemsUpdated;
+    requestDetails.totalAmount=totalAmount;
+    console.log(requestDetails);
 
     return requestDetails;
 }
