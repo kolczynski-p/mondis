@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require('./app.js');
 const { initialPopulateDb, placeOrder } = require('./db/mongo');
 const { ObjectId } = require('mongodb')
+const { saveToRedis, readFromRedis } = require('./redis-utils');
 
 //This request populate db with test data
 router.post('/mongo/ini', async (req, res) => {
@@ -46,11 +47,13 @@ router.get('/products/:id', async (req, res) => {
         await db.mongo.collection('products').find(query).toArray()
             .then(docs => {
                 res.status(200);
+                cacheJSON(docs);
                 return res.json(docs)
             });
     }
     catch (err) {
         res.status(500);
+        console.log(err)
         return res.send('Data fetch failed');
     }
 
@@ -114,12 +117,13 @@ router.get('/products/sale', async (req, res) => {
 //Categories requests sections
 
 //Get all categories
-router.get('/categories', async (req, res) => {
-
+router.get('/categories', readFromRedis, async (req, res) => {
+    console.log("Nie ma cache więc ściągam...");
     try {
         await db.mongo.collection('categories').find().toArray()
             .then(docs => {
                 res.status(200);
+                saveToRedis(docs);
                 return res.json(docs)
             });
     }
@@ -129,8 +133,6 @@ router.get('/categories', async (req, res) => {
     }
 
 })
-
-
 
 //Orders requests sections
 
@@ -190,7 +192,13 @@ router.get('/orders/:email', async (req, res) => {
 
 })
 
+function cacheJSON(data) {
+    db.redis.setex(data[0]._id, data[0]);
+}
 
+function cacheObject() {
+
+}
 
 
 
