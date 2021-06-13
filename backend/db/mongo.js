@@ -2,6 +2,7 @@ const MongoClient = require("mongodb").MongoClient;
 const urlMongo = process.env.MONGO_URL || "mongodb://localhost:27017";
 const productsData = require('./data/products');
 const categoriesData = require('./data/categories');
+const { ObjectId } = require('mongodb')
 
 
 let db;
@@ -24,10 +25,93 @@ async function connectToServer(callback) {
     })
 }
 
+
+
+//Place order
+
+async function placeOrder(requestDetails) {
+
+
+    try {
+        console.log("ORDER DEBUGG");
+        let items = requestDetails.items;
+        let totalAmount = 0;
+        let rollbackBuff = [];
+        let itemsUpdated = await Promise.all(items.map((item) => {
+            return new Promise((resolve) => {
+                const query = { _id: ObjectId(item._id) };
+                db.collection('products').find(query).toArray()
+                    .then(result => {
+                        result = result[0];
+                        try {
+                            if (result.stock < item.quantity) {
+                                if (rollbackBuff.length == 0) {
+                                    throw "ordered item is not in stock";
+                                }
+                                else {
+                                    rollbackBuff.forEach(async (rollbackItem) => {
+                                        console.log(rollbackItem);
+                                        const incQuantity = rollbackItem.quantity;
+                                        const updateQuery = { $inc: { "stock": incQuantity } };
+                                        console.log(updateQuery);
+
+                                        await db.collection('products').updateOne({ _id: ObjectId(rollbackItem._id) }, updateQuery);
+                                    });
+
+                                }
+
+                            }
+                            else {
+                                rollbackBuff.push(item);
+                                console.log(rollbackBuff);
+                                let price = result.price * item.quantity;
+                                if (result.stock < 3) {
+                                    price = price * 0.9;
+                                }
+
+                                item.price = price;
+                                item.brand = result.brand;
+                                item.name = result.name;
+                                totalAmount += price;
+                                console.log(totalAmount)
+
+                                const updatedQuantity = result.stock - item.quantity;
+                                const updateQuery = { $set: { "stock": updatedQuantity } };
+
+                                db.collection('products').updateOne({ _id: ObjectId(item._id) }, updateQuery)
+                                    .then(() => {
+                                        resolve(item);
+                                    });
+                            }
+                        } catch (err) { throw err; }
+
+                    });
+            })
+        }))
+        const timestamp = new Date().toISOString().slice(0, -5);
+        requestDetails.items = itemsUpdated;
+        requestDetails.totalAmount = totalAmount;
+        requestDetails.orderDate = timestamp;
+        console.log(requestDetails);
+
+        try {
+            db.collection('orders').insertOne(requestDetails);
+            console.log("Order inserted in db ");
+        }
+        catch (err) { throw err; }
+
+    } catch (err) { throw err; }
+
+
+    return requestDetails;
+
+
+}
+
 //Initial MongoDB data seeding
 
 async function initialPopulateDb(dbo) {
-    
+
     await dbo.listCollections().toArray(async function (err, collections) {
         //Create and populate shop.products
         console.log(collections);
@@ -86,4 +170,4 @@ async function initialPopulateDb(dbo) {
 
 }
 
-module.exports = { connectToServer, initialPopulateDb }
+module.exports = { connectToServer, initialPopulateDb, placeOrder }

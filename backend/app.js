@@ -12,7 +12,7 @@ let redisHandle;
 const app = express();
 const port = process.env.PORT || 3001;
 
-app.use(express.urlencoded());
+app.use(express.urlencoded({extended: true}));
 app.use(express.json());
 
 app.use(cors({
@@ -25,7 +25,7 @@ app.use(cors({
 }));
 
 
-app.use(bodyParser.json());
+
 
 app.use((req, res, next) => {
 	res.setHeader('Access-Control-Allow-Origin', '*');
@@ -51,8 +51,8 @@ mongo.connectToServer((err, db) => {
 		module.exports.mongo = dbHandle;
 		module.exports.redis = redisHandle;
 
-		const products = require('./routes');
-		app.use('/api/products', products);
+		const routes = require('./routes');
+		app.use('/api/', routes);
 		
 
 	}
