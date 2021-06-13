@@ -47,7 +47,6 @@ router.get('/products/:id', async (req, res) => {
         await db.mongo.collection('products').find(query).toArray()
             .then(docs => {
                 res.status(200);
-                cacheJSON(docs);
                 return res.json(docs)
             });
     }
@@ -191,16 +190,6 @@ router.get('/orders/:email', async (req, res) => {
     }
 
 })
-
-function cacheJSON(data) {
-    db.redis.setex(data[0]._id, data[0]);
-}
-
-function cacheObject() {
-
-}
-
-
 
 //Test redis request
 router.get('/redis', (req, res) => {
