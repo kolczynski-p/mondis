@@ -25,58 +25,87 @@ async function connectToServer(callback) {
     })
 }
 
+
+
 //Place order
 
 async function placeOrder(requestDetails) {
-    console.log("ORDER DEBUGG");
-    let items = requestDetails.items;
-    let totalAmount = 0;
-    let itemsUpdated = await Promise.all(items.map((item) => {
-        return new Promise((resolve) => {
-            const query = { _id: ObjectId(item._id) };
-            db.collection('products').find(query).toArray()
-            .then(result => {
-                result=result[0];
-                if (result.stock < item.quantity) {
-                    throw "ordered item is not in stock"
-                }
-                else {
-                    let price = result.price * item.quantity;
-                    if (result.stock < 3) {
-                        price = price * 0.9;
-                    }
-                    
-                    item.price = price;
-                    item.brand = result.brand;
-                    item.name = result.name;
-                    totalAmount += price;
-                    console.log(totalAmount)
-    
-                    const updatedQuantity = result.stock - item.quantity;
-                    const updateQuery = {$set: {"stock": updatedQuantity}};
-                    
-                    db.collection('products').updateOne({_id: ObjectId(item._id)},updateQuery)
-                    .then(() => {
-                        resolve(item);
-                    });
-                }
-            });
-        })
-    }))
-    const timestamp = new Date().toISOString().slice(0,-5);
-    requestDetails.items=itemsUpdated;
-    requestDetails.totalAmount=totalAmount;
-    requestDetails.orderDate=timestamp;
-    console.log(requestDetails);
-    
+
+
     try {
-        db.collection('orders').insertOne(requestDetails);
-        console.log("Order inserted in db ");
-    }
-    catch (err) { console.log("Order not inserted in db:  " + err); }
+        console.log("ORDER DEBUGG");
+        let items = requestDetails.items;
+        let totalAmount = 0;
+        let rollbackBuff = [];
+        let itemsUpdated = await Promise.all(items.map((item) => {
+            return new Promise((resolve) => {
+                const query = { _id: ObjectId(item._id) };
+                db.collection('products').find(query).toArray()
+                    .then(result => {
+                        result = result[0];
+                        try {
+                            if (result.stock < item.quantity) {
+                                if (rollbackBuff.length == 0) {
+                                    throw "ordered item is not in stock";
+                                }
+                                else {
+                                    rollbackBuff.forEach(async (rollbackItem) => {
+                                        console.log(rollbackItem);
+                                        const incQuantity = rollbackItem.quantity;
+                                        const updateQuery = { $inc: { "stock": incQuantity } };
+                                        console.log(updateQuery);
+
+                                        await db.collection('products').updateOne({ _id: ObjectId(rollbackItem._id) }, updateQuery);
+                                    });
+
+                                }
+
+                            }
+                            else {
+                                rollbackBuff.push(item);
+                                console.log(rollbackBuff);
+                                let price = result.price * item.quantity;
+                                if (result.stock < 3) {
+                                    price = price * 0.9;
+                                }
+
+                                item.price = price;
+                                item.brand = result.brand;
+                                item.name = result.name;
+                                totalAmount += price;
+                                console.log(totalAmount)
+
+                                const updatedQuantity = result.stock - item.quantity;
+                                const updateQuery = { $set: { "stock": updatedQuantity } };
+
+                                db.collection('products').updateOne({ _id: ObjectId(item._id) }, updateQuery)
+                                    .then(() => {
+                                        resolve(item);
+                                    });
+                            }
+                        } catch (err) { throw err; }
+
+                    });
+            })
+        }))
+        const timestamp = new Date().toISOString().slice(0, -5);
+        requestDetails.items = itemsUpdated;
+        requestDetails.totalAmount = totalAmount;
+        requestDetails.orderDate = timestamp;
+        console.log(requestDetails);
+
+        try {
+            db.collection('orders').insertOne(requestDetails);
+            console.log("Order inserted in db ");
+        }
+        catch (err) { throw err; }
+
+    } catch (err) { throw err; }
 
 
     return requestDetails;
+
+
 }
 
 //Initial MongoDB data seeding

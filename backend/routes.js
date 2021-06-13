@@ -138,16 +138,19 @@ router.get('/categories', async (req, res) => {
 //Place order
 router.post('/orders/order', async (req, res) => {
     const requestDetails = req.body;
-    
 
     try {
-        const orderResult = await placeOrder(requestDetails);
+        const orderResult = placeOrder(requestDetails).setTimeout(()=>{
+            res.status(500);
+            return res.send('Data insert failed, no order placed')
+
+        },3000) ;
         res.status(200);
         return res.json(orderResult);
     }
     catch (err) {
         res.status(500);
-        return res.send('Order failed');
+        return res.send('Data insert failed, no order placed');
     }
 
 })
